@@ -127,42 +127,6 @@ decl_module! {
             Self::deposit_event(RawEvent::CollectionReadOnly(proof, read_only));
         }
 
-        /// 设置可读
-        #[weight = 10_000]
-        fn change_collection_readable(origin, proof: Vec<u8>, read_only: bool) {
-        	let sender = ensure_signed(origin)?;
-
-            // 校验指定的证明是否被声明
-            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
-
-            // 获取声明的所有者
-            // let (owner, _) = Proofs::<T>::get(&proof);
-            let colletcion = Proofs::<T>::get(&proof);
-
-            let owner = colletcion.owner;
-
-            // 验证当前的调用者是证声明的所有者
-            ensure!(sender == owner, Error::<T>::NotProofOwner);
-
-			// 确定状态变更了再更新
-			// ensure!(colletcion.read_only != read_only, Error::<T>::ReadStatusNoChange);
-			// todo 这里有问题，状态不变更
-			Proofs::<T>::mutate(&proof, |c| c.read_only = read_only);
-			Self::deposit_event(RawEvent::CollectionReadOnly(proof, read_only));
-
-        }
-
-        /// 设置可读
-        #[weight = 10_000]
-        fn get_collection_read_status(origin, proof: Vec<u8>) {
-        	let _sender = ensure_signed(origin)?;
-
-            // 校验指定的证明是否被声明
-            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
-            let colletcion = Proofs::<T>::get(&proof);
-            Self::deposit_event(RawEvent::CollectionReadOnly(proof, colletcion.read_only));
-        }
-
         /// 允许证明所有者撤回声明
         #[weight = 10_000]
         fn revoke_collection(origin, proof: Vec<u8>) {
@@ -189,6 +153,43 @@ decl_module! {
             // 声明抹掉后，发送事件
             Self::deposit_event(RawEvent::CollectionRevoked(sender, proof));
         }
+
+		/// 设置可读
+        #[weight = 10_000]
+        fn get_collection_read_status(origin, proof: Vec<u8>) {
+        	let _sender = ensure_signed(origin)?;
+
+            // 校验指定的证明是否被声明
+            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
+            let colletcion = Proofs::<T>::get(&proof);
+            Self::deposit_event(RawEvent::CollectionReadOnly(proof, colletcion.read_only));
+        }
+
+        /// 设置可读
+        #[weight = 10_000]
+        fn change_collection_readable(origin, proof: Vec<u8>, read_only: bool) {
+        	let sender = ensure_signed(origin)?;
+
+            // 校验指定的证明是否被声明
+            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
+
+            // 获取声明的所有者
+            // let (owner, _) = Proofs::<T>::get(&proof);
+            let colletcion = Proofs::<T>::get(&proof);
+
+            let owner = colletcion.owner;
+
+            // 验证当前的调用者是证声明的所有者
+            ensure!(sender == owner, Error::<T>::NotProofOwner);
+
+			// 确定状态变更了再更新
+			// ensure!(colletcion.read_only != read_only, Error::<T>::ReadStatusNoChange);
+			// todo 这里有问题，状态不变更
+			Proofs::<T>::mutate(&proof, |c| c.read_only = read_only);
+			Self::deposit_event(RawEvent::CollectionReadOnly(proof, read_only));
+
+        }
+
 
 	}
 }
