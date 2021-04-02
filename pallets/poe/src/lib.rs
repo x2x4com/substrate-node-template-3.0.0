@@ -20,6 +20,7 @@ use codec::{
 	Decode,
 	Encode
 };
+use sp_runtime::traits::StaticLookup;
 
 #[cfg(test)]
 mod mock;
@@ -36,6 +37,7 @@ pub struct Collections<A, B> {
 	block_number: B,
 	read_only: bool,
 	some_thing: Vec<u8>,
+	count: i32,
 }
 
 // type CollectionOf<T> = Collections<<T as frame_system::Config>::AccountId, <T as frame_system::Config>::BlockNumber>;
@@ -63,11 +65,12 @@ decl_storage! {
 // https://substrate.dev/docs/en/knowledgebase/runtime/events
 decl_event!(
     pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-        /// Event emitted when a proof has been claimed. [who, claim, Collections]
-        CollectionCreated(AccountId, Vec<u8>),
-        /// Event emitted when a claim is revoked by the owner. [who, claim]
+        /// Event emitted when a proof has been claimed. [owner, claim, read_only, count]
+        CollectionStatus(AccountId, Vec<u8>, bool, i32),
+        /// Event emitted when a claim is revoked by the owner. [owner, claim]
         CollectionRevoked(AccountId, Vec<u8>),
-     	CollectionReadOnly(Vec<u8>, bool),
+        /// Event collection transfer [from, to]
+        CollectionTransfer(AccountId, AccountId),
     }
 );
 
@@ -112,19 +115,20 @@ decl_module! {
 
             // 存储证明：发送人与区块号
             // Proofs::<T>::insert(&proof, (&sender, current_block));
+			let count = 1;
 
             let collection = Collections{
             	owner: sender.clone(),
             	block_number: current_block,
             	some_thing: some_thing,
-				read_only: read_only
+				read_only: read_only,
+				count: count
             };
 
             Proofs::<T>::insert(&proof, collection);
 
             // 声明创建后，发送事件
-            Self::deposit_event(RawEvent::CollectionCreated(sender, proof.clone()));
-            Self::deposit_event(RawEvent::CollectionReadOnly(proof, read_only));
+            Self::deposit_event(RawEvent::CollectionStatus(sender, proof, read_only, count));
         }
 
         /// 允许证明所有者撤回声明
@@ -162,7 +166,7 @@ decl_module! {
             // 校验指定的证明是否被声明
             ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
             let colletcion = Proofs::<T>::get(&proof);
-            Self::deposit_event(RawEvent::CollectionReadOnly(proof, colletcion.read_only));
+            Self::deposit_event(RawEvent::CollectionStatus(colletcion.owner, proof, colletcion.read_only, colletcion.count));
         }
 
         /// 设置可读
@@ -183,13 +187,48 @@ decl_module! {
             ensure!(sender == owner, Error::<T>::NotProofOwner);
 
 			// 确定状态变更了再更新
-			// ensure!(colletcion.read_only != read_only, Error::<T>::ReadStatusNoChange);
-			// todo 这里有问题，状态不变更
-			Proofs::<T>::mutate(&proof, |c| c.read_only = read_only);
-			Self::deposit_event(RawEvent::CollectionReadOnly(proof, read_only));
+			ensure!(colletcion.read_only != read_only, Error::<T>::ReadStatusNoChange);
+
+			// https://polkadot.js.org/apps/  用这个测试，substrate-front-end-template 有问题
+			Proofs::<T>::mutate(&proof, |c| {
+			    c.read_only = read_only;
+			    c.count += 1
+			    });
+			Self::deposit_event(RawEvent::CollectionStatus(owner, proof, read_only, colletcion.count));
 
         }
 
+		/// 转移collection
+        #[weight = 10_000]
+		fn transfer_connection(origin, proof: Vec<u8>, target: <T::Lookup as StaticLookup>::Source) {
+			let sender = ensure_signed(origin)?;
 
+            // 校验指定的证明是否被声明
+            ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
+
+			let target = T::Lookup::lookup(target)?;
+
+
+            // 获取声明的所有者
+            // let (owner, _) = Proofs::<T>::get(&proof);
+            let colletcion = Proofs::<T>::get(&proof);
+
+            let owner = colletcion.owner;
+
+            // 验证当前的调用者是证声明的所有者
+            ensure!(sender == owner, Error::<T>::NotProofOwner);
+
+            // 确定状态不是只读的
+            ensure!(!colletcion.read_only, Error::<T>::ReadOnly);
+
+            // 更改collection owner
+			Proofs::<T>::mutate(&proof, |c| {
+			    c.owner = target.clone();
+			    c.count += 1
+			    });
+
+			Self::deposit_event(RawEvent::CollectionTransfer(owner, target));
+
+		}
 	}
 }
