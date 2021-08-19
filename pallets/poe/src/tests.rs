@@ -18,15 +18,13 @@ fn create_collection_works() {
 
         assert_ok!(PoeModule::create_collection(Origin::signed(1), proof.clone(), some_thing.clone(), read_only));
 
-        let coll_2 = Collections{
+        assert_eq!(Proofs::<Test>::get(&proof), Collections{
             owner: 1,
             block_number: 0,
             some_thing,
             read_only: true,
             count: 1
-        };
-
-        assert_eq!(Proofs::<Test>::get(&proof), coll_2);
+        });
 
 
     })
