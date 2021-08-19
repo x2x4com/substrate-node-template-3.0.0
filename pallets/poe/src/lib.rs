@@ -11,6 +11,7 @@ use frame_support::{
 	decl_error,
 	ensure,
 	StorageMap,
+    traits::Get
 	// dispatch
 };
 use frame_system::ensure_signed;
@@ -31,7 +32,7 @@ mod tests;
 /// 问题，数据存进去了，通过前端来查询发现结果是这个，无论存了什么key进去，返回都是这个
 /// 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0800000001
 /// 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d5000000001
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[derive(Encode, Decode, Default, Clone, PartialEq, Debug)]
 pub struct Collections<A, B> {
 	owner: A,
 	block_number: B,
@@ -46,6 +47,9 @@ pub struct Collections<A, B> {
 pub trait Config: frame_system::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
+	// limit proof length
+	type ProofLength: Get<u8>;
 }
 
 // The pallet's runtime storage items.
@@ -85,6 +89,7 @@ decl_error! {
         NotProofOwner,
         ReadOnly,
         ReadStatusNoChange,
+        LengthLimited,
     }
 }
 
@@ -106,6 +111,10 @@ decl_module! {
             // 如果 extrinsic 未签名，此函数将返回一个错误。
             // https://substrate.dev/docs/en/knowledgebase/runtime/origin
             let sender = ensure_signed(origin)?;
+
+            // 检查proof长度是否合规
+
+            ensure!(proof.len() <= T::ProofLength::get() as usize, Error::<T>::LengthLimited);
 
             // 校验指定的证明是否被声明
             ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
