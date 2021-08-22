@@ -9,10 +9,13 @@ const PROOF_LIMIT_SET: u8 = 16;
 #[test]
 fn create_collection_works() {
     new_test_ext().execute_with(|| {
-        let mut proof: Vec<u8> = vec![];
-        for i in 0..PROOF_LIMIT_SET {
-            proof.push(i);
-        }
+        // let mut proof: Vec<u8> = vec![];
+        // for i in 0..PROOF_LIMIT_SET {
+        //     proof.push(i);
+        // }
+        // vec支持一个repeat语法
+        let proof: Vec<u8> = [1].repeat((PROOF_LIMIT_SET) as usize);
+
         let some_thing = vec![0, 1];
         let read_only = true;
 
@@ -159,10 +162,14 @@ fn transfer_collection_failed_not_existed() {
 #[test]
 fn create_collection_failed_length_limit() {
     new_test_ext().execute_with(|| {
-        let mut proof: Vec<u8> = vec![];
-        for i in 0..PROOF_LIMIT_SET+1 {
-            proof.push(i);
-        }
+        // let mut proof: Vec<u8> = vec![];
+        // for i in 0..PROOF_LIMIT_SET+1 {
+        //     proof.push(i);
+        // }
+
+        // vec支持一个repeat语法
+        let proof: Vec<u8> = [1].repeat((PROOF_LIMIT_SET+1) as usize);
+
         // println!("{}", proof.len());
         let some_thing = vec![0, 1];
         let read_only = true;
